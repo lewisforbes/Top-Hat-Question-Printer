@@ -1,9 +1,10 @@
 import csv
 from os import listdir, mkdir, rename, remove
 from shutil import rmtree
-from os.path import isfile, join
+from os.path import exists, join
 from subprocess import call
 from time import sleep
+from _converter.orderer import orderer, get_tag
 
 def exception(msg):
     print("ERROR")
@@ -13,7 +14,8 @@ def exception(msg):
 
 # installs node modules if required, creates output path. 
 def init(out_path, user_path):
-    call("_converter\init.bat")
+    if not exists("_converter/node_modules"):
+        call("_converter\init.bat")
     try:
         mkdir(out_path)
     except:
@@ -22,31 +24,42 @@ def init(out_path, user_path):
         remove(user_path+"placeholder")
     except:
         pass
+    try:
+        rmtree(tmp)
+    except:
+        pass
 
 # generate formatted string from q details
 def parse_q(q, correct_raw, ans):
-    correct = []
-    if correct_raw=="":
-        correct_raw = "N/A"
-    elif correct_raw=="0":
-        correct_raw="ERROR"
+    if ans!=[]:
+        mcq = True
+        correct = []
+        if correct_raw=="":
+            correct_raw = "N/A"
+        elif correct_raw=="0":
+            correct_raw="ERROR"
+        else:
+            correct = correct_raw.split(",")
+            try:
+                correct = [int(q_i) for q_i in correct]
+            except:
+                exception("Correct column format is not valid: {}".format(correct_raw))
     else:
-        correct = correct_raw.split(",")
-        try:
-            correct = [int(q_i) for q_i in correct]
-        except:
-            exception("Correct column format is not valid: {}".format(correct_raw))
-    
+        mcq=False
+        ans = [correct_raw]
+        correct=[0]
     
     q = q.replace("```", "\n```").replace("\n\n```", "\n```")
     output = "\n"+q
-    for i, a in enumerate(ans):
-        bold = "  "
-        if i+1 in correct:
-            bold = "**"
-        output += "\n{}. {}{}{}".format(i+1, bold, a, bold)
-    
-    output += "\n\nCorrect: {}".format(correct_raw)
+    if mcq:
+        for i, a in enumerate(ans):
+            bold = "  "
+            if i+1 in correct:
+                bold = "**"
+            output += "\n{}. {}{}{}".format(i+1, bold, a, bold)
+        output+="\n"
+        
+    output += "\nCorrect: {}".format(correct_raw)
 
     return output
 
@@ -84,6 +97,7 @@ def go(user_path, out_path, in_path):
     call("_converter\convert.bat")
     join(in_path, joined_fname)
 
+    orderer(joined_fname) # can be commented out
 
     # make data
     f = open(joined_fname, "r")
@@ -94,17 +108,28 @@ def go(user_path, out_path, in_path):
         if first:
             first=False
             continue
+
+        tag = get_tag(line[1])
+        if tag==None:
+            i+=1
+            tag="Untagged Question {}".format(i)
+        else:
+            line[1] = line[1].replace(tag, "")
+
         i+=1
-        output += "\n### Question {}".format(i)
+        output += "\n### {}".format(pretty_tag(tag))
         output += parse_q(line[1], line[2], line[3:])
         output += "\n"
-
     output = output.replace('\u2713', '') # remove rogue trailing character, strip() doesn't work
     f.close()
 
     f = open(out_path+"[parsed] " + user_fname.replace(".csv", ".md"), "w")
     f.write(output)
     f.close()
+
+
+def pretty_tag(tag):
+    return tag.replace("F", "Folder ").replace("S", " Subfolder ").replace("Q", " Question ")
 
 
 # constants
@@ -115,6 +140,7 @@ in_path = base+"output/" # program input
 out_path = base+"final_output/" # program output
 
 # main 
+
 init(out_path, user_path)
 rename(user_path, tmp)
 mkdir(user_path)
@@ -127,4 +153,5 @@ for fname in listdir(tmp):
 assert len(listdir(user_path))==0
 rmtree(user_path)
 rename(tmp, user_path)
+
 sleep(1)
