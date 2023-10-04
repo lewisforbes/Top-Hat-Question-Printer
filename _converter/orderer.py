@@ -40,7 +40,11 @@ def get_tag(title):
 def remove_tag(s):
     tag = get_tag(s)
     if tag:
-        return s.replace(tag, "")
+        s = s.replace(tag, "")
+        if s[0]==" ":
+            s = s[1:]
+        return s
+
     else:
         return s
 
