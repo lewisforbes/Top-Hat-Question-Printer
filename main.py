@@ -4,7 +4,7 @@ from shutil import rmtree
 from os.path import exists, join
 from subprocess import call
 from time import sleep
-from _converter.orderer import orderer, get_tag
+from _converter.orderer import orderer, get_tag, remove_tag
 
 def exception(msg):
     print("ERROR")
@@ -16,6 +16,8 @@ def exception(msg):
 def init(out_path, user_path):
     if not exists("_converter/node_modules"):
         call("_converter\init.bat")
+    call("_converter\convert.bat")
+
     try:
         mkdir(out_path)
     except:
@@ -92,10 +94,11 @@ def go(user_path, out_path, in_path):
         exception("Something's gone wrong. Why are there {} input files?.".format(len(user_files)))
     user_fname = user_files[0]
 
-    # create input csv for program
+    # # create input csv for program
     joined_fname = out_path+"[joined] "+ user_fname
-    call("_converter\convert.bat")
+    # call("_converter\convert.bat")
     join(in_path, joined_fname)
+
 
     orderer(joined_fname) # can be commented out
 
@@ -109,16 +112,16 @@ def go(user_path, out_path, in_path):
             first=False
             continue
 
-        tag = get_tag(line[1])
+        tag = pretty_tag(get_tag(line[1]))
         if tag==None:
             i+=1
             tag="Untagged Question {}".format(i)
         else:
             line[1] = line[1].replace(tag, "")
 
-        i+=1
-        output += "\n### {}".format(pretty_tag(tag))
-        output += parse_q(line[1], line[2], line[3:])
+
+        output += "\n### {}".format(tag)
+        output += parse_q(remove_tag(line[1]), line[2], line[3:])
         output += "\n"
     output = output.replace('\u2713', '') # remove rogue trailing character, strip() doesn't work
     f.close()
@@ -129,6 +132,8 @@ def go(user_path, out_path, in_path):
 
 
 def pretty_tag(tag):
+    if tag==None:
+        return None
     return tag.replace("F", "Folder ").replace("S", " Subfolder ").replace("Q", " Question ")
 
 
@@ -153,5 +158,5 @@ for fname in listdir(tmp):
 assert len(listdir(user_path))==0
 rmtree(user_path)
 rename(tmp, user_path)
-
+print("done")
 sleep(1)
