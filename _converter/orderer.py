@@ -37,6 +37,13 @@ def get_tag(title):
             raise Exception("Different tags appear in the same line: {}".format(title))
     return tag[0]
 
+def remove_tag(s):
+    tag = get_tag(s)
+    if tag:
+        return s.replace(tag, "")
+    else:
+        return s
+
 
 def order_lines(lines):
     for k in ["Q", "S", "F"]:
